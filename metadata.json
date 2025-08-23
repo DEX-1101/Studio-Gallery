@@ -1,0 +1,5 @@
+{
+  "name": "Copy of VEO Video Generator",
+  "description": "An advanced AI-powered application to generate high-quality videos from text prompts and reference images using Google's latest VEO models. Users can input a prompt, optionally upload an image, select a model, and generate, preview, and download the resulting video.",
+  "requestFramePermissions": []
+}
