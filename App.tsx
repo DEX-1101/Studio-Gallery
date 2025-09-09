@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { PromptForm } from './components/PromptForm';
@@ -186,14 +182,14 @@ const SceneBuilderFlow: React.FC<SceneBuilderFlowProps> = ({
     fileInputRef.current?.click();
   };
 
-  // FIX: Pass a single object to onInitialSubmit to match the prop's type signature.
+  // FIX: Pass a single object to onInitialSubmit to match the prop's type signature, resolving a potential argument mismatch error.
   const handleInitialSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!character.trim() || !action.trim() || isDisabled) return;
-    onInitialSubmit({character, action, extra, initialImage: localInitialImage});
+    onInitialSubmit({ character, action, extra, initialImage: localInitialImage });
   };
 
-  // FIX: Pass a single object to onFollowUpSubmit to match the prop's type signature.
+  // FIX: Pass a single object to onFollowUpSubmit to match the prop's type signature, resolving a potential argument mismatch error.
   const handleFollowUpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!action.trim() || isDisabled) return;
@@ -345,6 +341,7 @@ const App: React.FC = () => {
   // Video Form State
   const [videoPrompt, setVideoPrompt] = useState<string>('');
   const [videoModel, setVideoModel] = useState<string>('veo-2.0-generate-001');
+  const [customVideoModel, setCustomVideoModel] = useState<string>('');
   const [videoImage, setVideoImage] = useState<{ data: ImageData, preview: string } | null>(null);
   const [videoAspectRatio, setVideoAspectRatio] = useState<AspectRatio>('16:9');
   
@@ -1049,6 +1046,13 @@ const App: React.FC = () => {
   const handleSubmit = async () => {
     if (!preflightCheck()) return;
 
+    if (appMode === AppMode.VIDEO) {
+      if (videoModel === 'custom' && !customVideoModel.trim()) {
+        setError(t('customModelIdError'));
+        return;
+      }
+    }
+
     // Note: SCENE_BUILD is handled via its own component and doesn't use this main submit handler.
     const controller = new AbortController();
     setAbortController(controller);
@@ -1062,12 +1066,13 @@ const App: React.FC = () => {
     try {
         let autoSaveSuccess = false;
         if (appMode === AppMode.VIDEO) {
+            const modelToUse = videoModel === 'custom' ? customVideoModel : videoModel;
             const downloadLink = await generateVideoFromPrompt({ 
                 prompt: videoPrompt,
-                model: videoModel,
+                model: modelToUse,
                 image: videoImage?.data,
                 apiKey,
-                aspectRatio: (videoModel === 'veo-2.0-generate-001' || videoModel === 'veo-3.0-generate-preview') ? videoAspectRatio : undefined,
+                aspectRatio: (modelToUse.startsWith('veo-')) ? videoAspectRatio : undefined,
                 signal: controller.signal,
             });
             
@@ -1156,6 +1161,7 @@ const App: React.FC = () => {
     setVideoPrompt('');
     setVideoImage(null);
     setVideoModel('veo-2.0-generate-001');
+    setCustomVideoModel('');
     setVideoAspectRatio('16:9');
     setImagePrompt('');
     setImageModel('imagen-4.0-generate-001');
@@ -1289,6 +1295,8 @@ const App: React.FC = () => {
             setPrompt={setVideoPrompt}
             model={videoModel}
             setModel={setVideoModel}
+            customModel={customVideoModel}
+            setCustomModel={setCustomVideoModel}
             image={videoImage}
             setImage={setVideoImage}
             aspectRatio={videoAspectRatio}

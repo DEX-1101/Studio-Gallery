@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import type { ImageData, AspectRatio } from '../types';
-import { UploadIcon, SparklesIcon, CancelGenerationIcon, VideoIcon, ClearInputIcon, MagicWandIcon, SpinnerIcon } from './IconComponents';
+import { UploadIcon, SparklesIcon, CancelGenerationIcon, VideoIcon, ClearInputIcon, MagicWandIcon, SpinnerIcon, CodeIcon } from './IconComponents';
 import { enhancePrompt, VIDEO_PROMPT_ENHANCEMENT_INSTRUCTION } from '../services/geminiService';
 import { AspectRatioSelector } from './AspectRatioSelector';
 import { useAutoResizeTextarea } from '../hooks/useAutoResizeTextarea';
@@ -19,6 +19,8 @@ interface PromptFormProps {
   setPrompt: (prompt: string) => void;
   model: string;
   setModel: (model: string) => void;
+  customModel: string;
+  setCustomModel: (model: string) => void;
   image: { data: ImageData; preview: string } | null;
   setImage: (image: { data: ImageData; preview: string } | null) => void;
   aspectRatio: AspectRatio;
@@ -36,6 +38,8 @@ export const PromptForm: React.FC<PromptFormProps> = ({
   setPrompt,
   model,
   setModel,
+  customModel,
+  setCustomModel,
   image,
   setImage,
   aspectRatio,
@@ -89,6 +93,16 @@ export const PromptForm: React.FC<PromptFormProps> = ({
     description: t(`modelDescription.${m.id.replace(/[\.\-]/g, '_')}`),
     icon: <VideoIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
   }));
+
+  const allVideoModels = [
+    ...videoModels,
+    {
+      id: 'custom',
+      name: t('customModelName'),
+      description: t('modelDescription.custom'),
+      icon: <CodeIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+    }
+  ];
 
   const handleEnhancePrompt = async () => {
     if (!prompt.trim() || isEnhancing || isGenerating || !apiKey) return;
@@ -159,11 +173,13 @@ export const PromptForm: React.FC<PromptFormProps> = ({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!prompt.trim() || isGenerating) return;
+    if (isGenerating || !prompt.trim() || (model === 'custom' && !customModel.trim())) return;
     onSubmit();
   };
   
   const isDisabled = isGenerating || isCancelling;
+  const isSubmitDisabled = isCancelling || (!isGenerating && (!prompt.trim() || (model === 'custom' && !customModel.trim())));
+
 
   const handleClear = () => {
     setPrompt('');
@@ -223,7 +239,7 @@ export const PromptForm: React.FC<PromptFormProps> = ({
                      <button
                         type={isGenerating ? "button" : "submit"}
                         onClick={isGenerating ? onCancel : undefined}
-                        disabled={isCancelling || (!isGenerating && !prompt.trim())}
+                        disabled={isSubmitDisabled}
                         className={`py-2 px-6 text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-150 ease-in-out active:scale-95 ${
                             isGenerating 
                                 ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 bg-200% animate-gradient-pulse'
@@ -305,13 +321,30 @@ export const PromptForm: React.FC<PromptFormProps> = ({
                 <div>
                   <CustomModelSelector
                     label={t('modelLabel')}
-                    options={videoModels}
+                    options={allVideoModels}
                     value={model}
                     onChange={setModel}
                     disabled={isDisabled}
                     t={t}
                   />
                 </div>
+                {model === 'custom' && (
+                  <div className="animate-fade-in">
+                    <label htmlFor="custom-model-id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('customModelLabel')}
+                    </label>
+                    <input
+                      id="custom-model-id"
+                      type="text"
+                      value={customModel}
+                      onChange={(e) => setCustomModel(e.target.value)}
+                      placeholder={t('customModelPlaceholder')}
+                      className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-800 dark:text-gray-300 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-colors duration-200"
+                      required
+                      disabled={isDisabled}
+                    />
+                  </div>
+                )}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       {t('aspectRatioLabel')}

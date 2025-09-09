@@ -19,6 +19,10 @@
   "imageUploadButton": "Unggah Gambar",
   "imageChangeButton": "Ganti Gambar",
   "modelLabel": "Pilih Model",
+  "customModelName": "Kustom",
+  "customModelLabel": "ID Model Kustom",
+  "customModelPlaceholder": "contoh: veo-custom-model-id",
+  "customModelIdError": "ID model kustom tidak boleh kosong jika tipe model 'Kustom' dipilih.",
   "generateButton": "Hasilkan",
   "generatingButton": "Menghasilkan...",
   "cancelGenerationButton": "Batalkan",
@@ -51,6 +55,7 @@
   "modelDescription": {
     "veo_2_0_generate_001": "Model video andalan Google, sempurna untuk hasil sinematik berkualitas tinggi.",
     "veo_3_0_generate_preview": "Pratinjau eksperimental model VEO generasi berikutnya dengan kemampuan yang ditingkatkan.",
+    "custom": "Masukkan ID model VEO kustom untuk generasi.",
     "imagen_3_0_generate_002": "Model yang kuat untuk menghasilkan gambar berkualitas tinggi.",
     "imagen_4_0_fast_generate_001": "Dioptimalkan untuk kecepatan, ideal untuk iterasi cepat dan pratinjau.",
     "imagen_4_0_generate_001": "Model standar Imagen 4, menawarkan keseimbangan kualitas dan kecepatan yang hebat.",

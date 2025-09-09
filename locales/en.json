@@ -1,3 +1,4 @@
+
 {
   "headerTitle": "AI Studio Gallery",
   "headerSubtitle": "All in one place you need",
@@ -18,6 +19,10 @@
   "imageUploadButton": "Upload Image",
   "imageChangeButton": "Change Image",
   "modelLabel": "Select Model",
+  "customModelName": "Custom",
+  "customModelLabel": "Custom Model ID",
+  "customModelPlaceholder": "e.g., veo-custom-model-id",
+  "customModelIdError": "Custom model ID cannot be empty when 'Custom' model type is selected.",
   "generateButton": "Generate",
   "generatingButton": "Generating...",
   "cancelGenerationButton": "Cancel",
@@ -50,6 +55,7 @@
   "modelDescription": {
     "veo_2_0_generate_001": "Google's flagship video model, perfect for high-quality, cinematic shots.",
     "veo_3_0_generate_preview": "Experimental preview of the next generation VEO model with enhanced capabilities.",
+    "custom": "Enter a custom VEO model ID for generation.",
     "imagen_3_0_generate_002": "A powerful model for generating high-quality images.",
     "imagen_4_0_fast_generate_001": "Optimized for speed, ideal for rapid iterations and previews.",
     "imagen_4_0_generate_001": "The standard Imagen 4 model, offering a great balance of quality and speed.",
