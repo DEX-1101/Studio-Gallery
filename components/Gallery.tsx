@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import type { GalleryItem } from '../types';
 import { GalleryItemCard } from './GalleryItemCard';
@@ -10,9 +12,10 @@ interface GalleryProps {
   onDelete: (id: string) => void;
   onReuse: (item: GalleryItem) => void;
   t: (key: string) => string;
+  apiKey: string;
 }
 
-export const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose, items, onDelete, onReuse, t }) => {
+export const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose, items, onDelete, onReuse, t, apiKey }) => {
   if (!isOpen) return null;
 
   return (
@@ -32,6 +35,7 @@ export const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose, items, onDele
             onClick={onClose} 
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             aria-label="Close gallery"
+            title={t('tooltips.closeGallery')}
           >
             <CloseIcon />
           </button>
@@ -50,6 +54,7 @@ export const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose, items, onDele
                   onDelete={onDelete}
                   onReuse={onReuse}
                   t={t}
+                  apiKey={apiKey}
                   style={{ animationDelay: `${100 + index * 80}ms` }}
                 />
               ))}

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VEO Video Generator</title>
+    <title>AI Studio Gallery</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       // On page load or when changing themes, best to add inline in `head` to avoid FOUC
@@ -35,6 +35,10 @@
                 '0%, 100%': { 'background-position': '0% 50%' },
                 '50%': { 'background-position': '100% 50%' },
               },
+              'icon-color-pulse': {
+                '0%, 100%': { color: '#60a5fa' /* blue-400 */ },
+                '50%': { color: '#4ade80' /* green-400 */ },
+              },
               'indeterminate-bar': {
                 '0%': { transform: 'translateX(-100%)' },
                 '100%': { transform: 'translateX(200%)' },
@@ -46,6 +50,18 @@
               'fade-in': {
                 '0%': { opacity: '0' },
                 '100%': { opacity: '1' },
+              },
+              'fade-out': {
+                '0%': { opacity: '1' },
+                '100%': { opacity: '0' },
+              },
+              'fade-in-scale-up': {
+                '0%': { opacity: '0', transform: 'scale(0.95) translateY(10px)' },
+                '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+              },
+              'fade-out-scale-down': {
+                '0%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+                '100%': { opacity: '0', transform: 'scale(0.95) translateY(10px)' },
               },
               'slide-in-from-right': {
                 '0%': { transform: 'translateX(5%)', opacity: '0' },
@@ -63,19 +79,34 @@
                 '0%': { transform: 'translateX(0)', opacity: '1' },
                 '100%': { transform: 'translateX(5%)', opacity: '0' },
               },
+              'bounce-subtle': {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-15%)' },
+              },
+              'shimmer': {
+                '0%': { 'background-position': '-200% 0' },
+                '100%': { 'background-position': '200% 0' },
+              },
             },
             animation: {
               'gradient-pulse': 'gradient-pulse 4s ease infinite',
+              'icon-color-pulse': 'icon-color-pulse 4s ease infinite',
               'indeterminate-bar': 'indeterminate-bar 1.5s linear infinite',
               'run-left': 'run-left 3s linear infinite',
               'fade-in': 'fade-in 0.3s ease-out forwards',
+              'fade-out': 'fade-out 0.3s ease-in forwards',
+              'fade-in-scale-up': 'fade-in-scale-up 0.4s ease-out forwards',
+              'fade-out-scale-down': 'fade-out-scale-down 0.3s ease-in forwards',
               'slide-in-from-right': 'slide-in-from-right 0.4s ease-out forwards',
               'slide-out-to-left': 'slide-out-to-left 0.3s ease-in forwards',
               'slide-in-from-left': 'slide-in-from-left 0.4s ease-out forwards',
               'slide-out-to-right': 'slide-out-to-right 0.3s ease-in forwards',
+              'bounce-subtle': 'bounce-subtle 0.6s ease-out',
+              'shimmer': 'shimmer 1.5s linear infinite',
             },
             backgroundSize: {
               '200%': '200% 200%',
+              '400%': '400% 100%',
             }
           }
         }
@@ -86,11 +117,114 @@
   "imports": {
     "react/": "https://esm.sh/react@^19.1.1/",
     "react": "https://esm.sh/react@^19.1.1",
-    "@google/genai": "https://esm.sh/@google/genai@^1.15.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/"
+    "@google/genai": "https://esm.sh/@google/genai@^0.15.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "marked": "https://esm.sh/marked@^13.0.2",
+    "dompurify": "https://esm.sh/dompurify@^3.1.6"
   }
 }
 </script>
+<style>
+  /* Custom scrollbar for a more modern look in the chat */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #4A5568; /* gray-700 */
+    border-radius: 20px;
+    border: 3px solid transparent;
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #718096; /* gray-500 */
+  }
+
+  /* Styling for markdown content rendered in chat for readability */
+  .prose-chat ul, .prose-chat ol {
+    padding-left: 1.75rem; /* Ensure proper list indentation */
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    list-style-position: outside;
+  }
+  .prose-chat ul {
+    list-style-type: disc;
+  }
+  .prose-chat ol {
+    list-style-type: decimal;
+  }
+  .prose-chat li {
+    margin-bottom: 0.25rem;
+  }
+  .prose-chat strong {
+    font-weight: bold;
+  }
+  .prose-chat em {
+    font-style: italic;
+  }
+  .prose-chat pre {
+    background-color: #f3f4f6; /* Tailwind gray-100 for contrast in light mode */
+    color: #1f2937; /* Tailwind gray-800 for readability in light mode */
+    padding: 1rem;
+    border-radius: 0.5rem;
+    white-space: pre-wrap; /* Allow wrapping */
+    word-break: break-all; /* Force break for long words */
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.9em;
+    line-height: 1.6;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb; /* Tailwind gray-200 */
+  }
+  .dark .prose-chat pre {
+    background-color: #121212; /* gray-900 from config */
+    color: #E0E0E0; /* gray-300 from config */
+    border: 1px solid #2C2C2C; /* gray-700 from config */
+  }
+  .prose-chat code:not(pre > code) {
+    background-color: #e2e8f0;
+    color: #2d3748;
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    border-radius: 3px;
+  }
+  .dark .prose-chat code:not(pre > code) {
+    background-color: #2d3748;
+    color: #e2e8f0;
+  }
+  
+  /* Tracer animation that respects border-radius */
+  @property --angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+
+  @keyframes tracer-spin {
+    to {
+      --angle: 360deg;
+    }
+  }
+
+  .tracer-border-active {
+    --angle: 0deg;
+    /* Use an animated background. The padding on the element (from Tailwind's p-1 class) 
+       and the background on the child element create the border effect that respects border-radius. */
+    background: conic-gradient(
+      from var(--angle),
+      transparent 0deg,
+      #4285F4 80deg,
+      transparent 160deg,
+      transparent 180deg,
+      #EA4335 260deg,
+      transparent 340deg,
+      transparent 360deg
+    );
+    animation: tracer-spin 4s linear infinite;
+  }
+</style>
 <link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-300 transition-colors duration-300">

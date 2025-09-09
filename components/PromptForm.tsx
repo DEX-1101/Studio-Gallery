@@ -1,6 +1,16 @@
-import React, { useState, useRef } from 'react';
-import type { ImageData } from '../types';
-import { UploadIcon } from './IconComponents';
+
+
+import React, { useState, useRef, useEffect } from 'react';
+import type { ImageData, AspectRatio } from '../types';
+import { UploadIcon, SparklesIcon, CancelGenerationIcon, VideoIcon, ClearInputIcon, MagicWandIcon, SpinnerIcon } from './IconComponents';
+import { enhancePrompt, VIDEO_PROMPT_ENHANCEMENT_INSTRUCTION } from '../services/geminiService';
+import { AspectRatioSelector } from './AspectRatioSelector';
+import { useAutoResizeTextarea } from '../hooks/useAutoResizeTextarea';
+import { CustomModelSelector } from './CustomModelSelector';
+
+const MAX_SIZE_MB = 10;
+const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 interface PromptFormProps {
   onSubmit: () => void;
@@ -11,6 +21,12 @@ interface PromptFormProps {
   setModel: (model: string) => void;
   image: { data: ImageData; preview: string } | null;
   setImage: (image: { data: ImageData; preview: string } | null) => void;
+  aspectRatio: AspectRatio;
+  setAspectRatio: (ratio: AspectRatio) => void;
+  apiKey: string;
+  isGenerating?: boolean;
+  isCancelling?: boolean;
+  onCancel: () => void;
 }
 
 export const PromptForm: React.FC<PromptFormProps> = ({
@@ -22,13 +38,98 @@ export const PromptForm: React.FC<PromptFormProps> = ({
   setModel,
   image,
   setImage,
+  aspectRatio,
+  setAspectRatio,
+  apiKey,
+  isGenerating = false,
+  isCancelling = false,
+  onCancel,
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isEnhancing, setIsEnhancing] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useAutoResizeTextarea(textareaRef, prompt);
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    let intervalId: number | undefined;
+    if (isGenerating && !isCancelling) {
+      const startTime = Date.now();
+      intervalId = window.setInterval(() => {
+        setTimer(Date.now() - startTime);
+      }, 100);
+    } else {
+      setTimer(0);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isGenerating, isCancelling]);
+
+  const videoAspectRatioOptions = [
+    { value: '16:9' as AspectRatio, label: t('aspectRatio.landscape') },
+    { value: '9:16' as AspectRatio, label: t('aspectRatio.portrait') },
+  ];
+
+  const videoModels = [
+    { 
+      id: 'veo-2.0-generate-001', 
+      name: 'VEO 2', 
+    },
+    { 
+      id: 'veo-3.0-generate-preview', 
+      name: 'VEO 3 Preview', 
+    },
+  ].map(m => ({
+    ...m,
+    description: t(`modelDescription.${m.id.replace(/[\.\-]/g, '_')}`),
+    icon: <VideoIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+  }));
+
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim() || isEnhancing || isGenerating || !apiKey) return;
+    setIsEnhancing(true);
+    try {
+      const enhanced = await enhancePrompt({ 
+        prompt, 
+        apiKey, 
+        instruction: VIDEO_PROMPT_ENHANCEMENT_INSTRUCTION 
+      });
+      setPrompt(enhanced);
+    } catch (error) {
+      console.error("Failed to enhance prompt:", error);
+      // Optionally show an error to the user
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
+    // By wrapping the logic in a try/finally, we ensure that the file input's
+    // value is cleared after every selection. This is crucial for allowing the
+    // user to select the same file again after removing it, as the `onChange`
+    // event would not fire otherwise.
+    try {
+      setImageError(null);
+      const file = event.target.files?.[0];
+      if (!file) {
+        return; // User cancelled the file dialog
+      }
+
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setImageError(t('invalidFileTypeError'));
+        return;
+      }
+
+      if (file.size > MAX_SIZE_BYTES) {
+        setImageError(t('fileTooLargeError'));
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = (reader.result as string).split(',')[1];
@@ -38,103 +139,196 @@ export const PromptForm: React.FC<PromptFormProps> = ({
         });
       };
       reader.readAsDataURL(file);
+    } finally {
+      if (event.target) {
+        event.target.value = '';
+      }
     }
   };
 
-  const triggerFileSelect = () => fileInputRef.current?.click();
+  const triggerFileSelect = () => {
+    if (isDisabled) return;
+    setImageError(null);
+    fileInputRef.current?.click();
+  };
+  
+  const handleRemoveImage = () => {
+    setImageError(null);
+    setImage(null);
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!prompt.trim() || isSubmitting) return;
-
-    setIsSubmitting(true);
+    if (!prompt.trim() || isGenerating) return;
     onSubmit();
+  };
+  
+  const isDisabled = isGenerating || isCancelling;
+
+  const handleClear = () => {
+    setPrompt('');
+    setImage(null);
+    setImageError(null);
   };
 
   return (
-    <div className="w-full bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            {t('promptLabel')}
-          </label>
-          <textarea
-            id="prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={t('promptPlaceholder')}
-            rows={5}
-            className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-800 dark:text-gray-300 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-colors duration-200"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="image-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('imageLabel')}
-            </label>
-            <input
-              type="file"
-              id="image-upload"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              accept="image/png, image/jpeg, image/webp"
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={triggerFileSelect}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white font-semibold rounded-lg shadow-md transform transition-transform duration-150 ease-in-out active:scale-95"
-            >
-              <UploadIcon />
-              {image ? t('imageChangeButton') : t('imageUploadButton')}
-            </button>
-            {image && (
-              <div className="mt-4 relative group">
-                <img src={image.preview} alt="Image preview" className="w-full h-auto rounded-lg" />
-                 <button 
-                    type="button" 
-                    onClick={() => setImage(null)}
-                    className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="Remove image"
-                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                 </button>
-              </div>
-            )}
-          </div>
-
+    <div className={`p-1 rounded-xl transition-all duration-300 ${isGenerating ? 'tracer-border-active' : ''}`}>
+      <div className={`w-full bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-2xl border ${isGenerating ? 'border-transparent' : 'border-gray-200 dark:border-gray-700'} transition-colors duration-300`}>
+        <form onSubmit={handleSubmit}>
           <div className="space-y-6">
             <div>
-              <label htmlFor="model" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('modelLabel')}
-              </label>
-              <select
-                id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-800 dark:text-gray-300 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-colors duration-200"
-              >
-                <option value="veo-3.0-generate-preview">veo-3.0-generate-preview</option>
-                <option value="veo-2.0-generate-001">veo-2.0-generate-001</option>
-              </select>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('promptLabel')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    disabled={isDisabled || (!prompt.trim() && !image)}
+                    className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-full shadow-sm transform transition-transform duration-150 ease-in-out hover:bg-gray-300 dark:hover:bg-gray-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={t('clearInputsButton')}
+                  >
+                    <ClearInputIcon className="h-4 w-4" />
+                    {t('clearButton')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEnhancePrompt}
+                    disabled={!prompt.trim() || isEnhancing || isDisabled || !apiKey}
+                    className="flex items-center gap-2 px-3 py-1 text-xs font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-md transform transition-transform duration-150 ease-in-out hover:from-purple-600 hover:to-pink-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={t('enhancePromptButton')}
+                  >
+                    <SparklesIcon />
+                    {isEnhancing ? t('enhancingPromptButton') : t('enhancePromptButton')}
+                  </button>
+                </div>
+              </div>
+              <div className="relative">
+                  <textarea
+                    id="prompt"
+                    ref={textareaRef}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder={t('promptPlaceholder')}
+                    rows={3}
+                    className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 pb-16 text-gray-800 dark:text-gray-300 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-colors duration-200 resize-none overflow-y-hidden"
+                    required
+                    disabled={isDisabled}
+                  />
+                  {isGenerating && (
+                    <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg pointer-events-none animate-fade-in bg-gradient-to-r from-transparent via-white/20 to-transparent bg-400% animate-shimmer"></div>
+                  )}
+                  <div className="absolute bottom-3 right-3">
+                     <button
+                        type={isGenerating ? "button" : "submit"}
+                        onClick={isGenerating ? onCancel : undefined}
+                        disabled={isCancelling || (!isGenerating && !prompt.trim())}
+                        className={`py-2 px-6 text-white font-bold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-150 ease-in-out active:scale-95 ${
+                            isGenerating 
+                                ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 bg-200% animate-gradient-pulse'
+                                : 'bg-gradient-to-r from-blue-500 to-green-500 bg-200% animate-gradient-pulse'
+                        }`}
+                        title={isGenerating ? t('tooltips.cancelGeneration') : t('tooltips.generate')}
+                      >
+                        {isGenerating ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <CancelGenerationIcon isLarge={isGenerating} />
+                                {isCancelling ? t('cancellingGenerationButton') : `${(timer / 1000).toFixed(1)}s`}
+                            </span>
+                        ) : (
+                            <span className="flex items-center justify-center gap-2">
+                                <MagicWandIcon />
+                                {t('generateButton')}
+                            </span>
+                        )}
+                      </button>
+                  </div>
+              </div>
+              <p className="text-xs text-left text-blue-500 dark:text-blue-400 mt-1">{t('jsonPromptNotice')}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('imageLabel')}
+                </label>
+                <input
+                  type="file"
+                  id="image-upload"
+                  ref={fileInputRef}
+                  onChange={handleImageChange}
+                  accept="image/png, image/jpeg, image/webp"
+                  className="hidden"
+                  disabled={isDisabled}
+                />
+                <div
+                  onClick={triggerFileSelect}
+                  onKeyDown={(e) => { if (!isDisabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); triggerFileSelect(); } }}
+                  role="button"
+                  tabIndex={isDisabled ? -1 : 0}
+                  aria-label={image ? t('imageChangeButton') : t('imageUploadButton')}
+                  title={t('tooltips.uploadReferenceImage')}
+                  className={`group relative w-full aspect-video border-2 border-dashed rounded-lg flex items-center justify-center transition-all duration-300 ${
+                    isDisabled
+                      ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-800/50'
+                      : 'cursor-pointer hover:border-brand-primary dark:hover:border-brand-primary hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  } ${image ? 'border-gray-400 dark:border-gray-500' : 'border-gray-300 dark:border-gray-600'}`}
+                >
+                  {image ? (
+                    <>
+                      <img src={image.preview} alt="Image preview" className="max-h-full max-w-full object-contain rounded-md p-1" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRemoveImage(); }}
+                        disabled={isDisabled}
+                        className="absolute top-2 right-2 bg-black bg-opacity-60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 disabled:opacity-0"
+                        aria-label="Remove image"
+                        title={t('tooltips.removeImage')}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </>
+                  ) : (
+                     <div className="text-center text-gray-500 dark:text-gray-400 p-4">
+                        <UploadIcon className={`mx-auto h-8 w-8 text-gray-400 ${!isDisabled && 'group-hover:animate-bounce-subtle'}`} />
+                        <p className="mt-2 text-sm">{t('imageUploadButton')}</p>
+                     </div>
+                  )}
+                </div>
+                {imageError && <p className="text-sm text-center text-brand-danger mt-2">{imageError}</p>}
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <CustomModelSelector
+                    label={t('modelLabel')}
+                    options={videoModels}
+                    value={model}
+                    onChange={setModel}
+                    disabled={isDisabled}
+                    t={t}
+                  />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('aspectRatioLabel')}
+                    </label>
+                    <AspectRatioSelector
+                      value={aspectRatio}
+                      onChange={setAspectRatio}
+                      options={videoAspectRatioOptions}
+                      disabled={isDisabled}
+                      t={t}
+                    />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div>
-          <button
-            type="submit"
-            disabled={!prompt.trim() || isSubmitting}
-            className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-green-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transform transition-transform duration-150 ease-in-out active:scale-95 bg-200% animate-gradient-pulse"
-          >
-            {isSubmitting ? t('generatingButton') : t('generateButton')}
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

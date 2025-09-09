@@ -1,16 +1,22 @@
+
+
 import React from 'react';
 
 interface ThemeSwitcherProps {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  disabled?: boolean;
+  t: (key: string) => string;
 }
 
-export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ theme, toggleTheme }) => {
+export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ theme, toggleTheme, disabled = false, t }) => {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transform transition-transform duration-150 ease-in-out active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-brand-primary"
+      disabled={disabled}
+      className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transform transition-transform duration-150 ease-in-out active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-brand-primary shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
       aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+      title={theme === 'light' ? t('tooltips.switchToDark') : t('tooltips.switchToLight')}
     >
       {theme === 'light' ? (
         // Moon Icon
