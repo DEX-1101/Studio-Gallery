@@ -1,4 +1,13 @@
 
+
+
+
+
+
+
+
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { PromptForm } from './components/PromptForm';
@@ -16,7 +25,7 @@ import { ModeSwitcher } from './components/ModeSwitcher';
 import { ConfirmationDialog } from './components/ConfirmationDialog';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { generateVideoFromPrompt, generateImagesFromPrompt, editImageWithNanoBanana, generateCompositeImage, enhancePrompt } from './services/geminiService';
-import type { ImageData, AspectRatio, Resolution, NanoBananaResultPart, GenerateImageParams, EnhancePromptParams, Progress } from './types';
+import type { ImageData, AspectRatio, NanoBananaResultPart, GenerateImageParams, EnhancePromptParams, Progress, ImageResolution, VideoResolution } from './types';
 import { AppState, AppMode } from './types';
 import { useI18n } from './hooks/useI18n';
 import { useTheme } from './hooks/useTheme';
@@ -182,14 +191,12 @@ const SceneBuilderFlow: React.FC<SceneBuilderFlowProps> = ({
     fileInputRef.current?.click();
   };
 
-  // FIX: Pass a single object to onInitialSubmit to match the prop's type signature, resolving a potential argument mismatch error.
   const handleInitialSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!character.trim() || !action.trim() || isDisabled) return;
     onInitialSubmit({ character, action, extra, initialImage: localInitialImage });
   };
 
-  // FIX: Pass a single object to onFollowUpSubmit to match the prop's type signature, resolving a potential argument mismatch error.
   const handleFollowUpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!action.trim() || isDisabled) return;
@@ -344,13 +351,17 @@ const App: React.FC = () => {
   const [customVideoModel, setCustomVideoModel] = useState<string>('');
   const [videoImage, setVideoImage] = useState<{ data: ImageData, preview: string } | null>(null);
   const [videoAspectRatio, setVideoAspectRatio] = useState<AspectRatio>('16:9');
+  const [videoDuration, setVideoDuration] = useState<number>(5);
+  const [videoNumberOfVideos, setVideoNumberOfVideos] = useState<number>(1);
+  const [videoResolution, setVideoResolution] = useState<VideoResolution>('720p');
+  const [videoGeneratePeople, setVideoGeneratePeople] = useState<boolean>(true);
   
   // Image Form State
   const [imagePrompt, setImagePrompt] = useState<string>('');
   const [imageModel, setImageModel] = useState<string>('imagen-4.0-generate-001');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [numberOfImages, setNumberOfImages] = useState<number>(1);
-  const [resolution, setResolution] = useState<Resolution>('1k');
+  const [resolution, setResolution] = useState<ImageResolution>('1k');
   const [imageOutputMimeType, setImageOutputMimeType] = useState<'image/jpeg' | 'image/png'>('image/jpeg');
 
   // Image Edit States (Image Builder, Image Fusion)
@@ -974,8 +985,8 @@ const App: React.FC = () => {
       }
   };
 
-  // FIX: Updated function signature to accept a single object parameter to match the 'onInitialSubmit' prop type.
-  const handleSceneBuildInitialStep = async (params: { character: string; action: string; extra: string; initialImage?: { data: ImageData; preview: string; }; }) => {
+// FIX: Updated function signature to accept a single object parameter and destructure internally to resolve argument mismatch error.
+const handleSceneBuildInitialStep = async (params: { character: string; action: string; extra: string; initialImage?: { data: ImageData; preview: string; }; }) => {
     const { character, action, extra, initialImage } = params;
     if (!preflightCheck()) return;
     
@@ -1005,8 +1016,8 @@ const App: React.FC = () => {
     }
   };
 
-  // FIX: Updated function signature to accept a single object parameter to match the 'onFollowUpSubmit' prop type.
-  const handleSceneBuildFollowUpStep = async (params: { action: string }) => {
+// FIX: Updated function signature to accept a single object parameter and destructure internally to resolve argument mismatch error.
+const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
     const { action } = params;
     if (!preflightCheck()) return;
   
@@ -1074,6 +1085,10 @@ const App: React.FC = () => {
                 apiKey,
                 aspectRatio: (modelToUse.startsWith('veo-')) ? videoAspectRatio : undefined,
                 signal: controller.signal,
+                durationSecs: videoDuration,
+                numberOfVideos: videoNumberOfVideos,
+                resolution: videoResolution,
+                generatePeople: videoGeneratePeople,
             });
             
             const response = await fetch(`${downloadLink}&key=${apiKey}`);
@@ -1163,6 +1178,11 @@ const App: React.FC = () => {
     setVideoModel('veo-2.0-generate-001');
     setCustomVideoModel('');
     setVideoAspectRatio('16:9');
+    setVideoDuration(5);
+    setVideoNumberOfVideos(1);
+    setVideoResolution('720p');
+    setVideoGeneratePeople(true);
+
     setImagePrompt('');
     setImageModel('imagen-4.0-generate-001');
     setAspectRatio('1:1');
@@ -1301,6 +1321,14 @@ const App: React.FC = () => {
             setImage={setVideoImage}
             aspectRatio={videoAspectRatio}
             setAspectRatio={setVideoAspectRatio}
+            duration={videoDuration}
+            setDuration={setVideoDuration}
+            numberOfVideos={videoNumberOfVideos}
+            setNumberOfVideos={setVideoNumberOfVideos}
+            resolution={videoResolution}
+            setResolution={setVideoResolution}
+            generatePeople={videoGeneratePeople}
+            setGeneratePeople={setVideoGeneratePeople}
             apiKey={apiKey}
             isGenerating={isGenerating}
             isCancelling={isCancelling}

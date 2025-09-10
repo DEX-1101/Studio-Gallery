@@ -398,7 +398,7 @@ const handleApiError = (error: unknown): never => {
     throw new Error(`An error occurred: ${rawMessage}`);
 };
 
-export const generateVideoFromPrompt = async ({ prompt, model, image, apiKey, aspectRatio, signal }: GenerateVideoParams): Promise<string> => {
+export const generateVideoFromPrompt = async ({ prompt, model, image, apiKey, aspectRatio, signal, durationSecs, numberOfVideos, resolution, generatePeople }: GenerateVideoParams): Promise<string> => {
   if (!apiKey) {
     throw new Error("API Key is not configured.");
   }
@@ -410,12 +410,24 @@ export const generateVideoFromPrompt = async ({ prompt, model, image, apiKey, as
     model,
     prompt,
     config: {
-      numberOfVideos: 1,
+      numberOfVideos: numberOfVideos || 1,
     },
   };
 
-  if ((model === 'veo-2.0-generate-001' || model === 'veo-3.0-generate-preview') && aspectRatio) {
+  if ((model.startsWith('veo-')) && aspectRatio) {
     requestPayload.config.aspectRatio = aspectRatio;
+  }
+  
+  if (durationSecs) {
+    requestPayload.config.durationSecs = durationSecs;
+  }
+
+  if (generatePeople !== undefined) {
+      requestPayload.config.generatePeople = generatePeople;
+  }
+
+  if (resolution && aspectRatio === '16:9') {
+      requestPayload.config.resolution = resolution === '1080p' ? 'SDR_1080P' : 'SDR_720P';
   }
 
   if (image) {

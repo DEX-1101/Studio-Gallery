@@ -23,6 +23,10 @@ export interface ImageData {
   mimeType: string;
 }
 
+export type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+export type ImageResolution = '1k' | '2k';
+export type VideoResolution = '720p' | '1080p';
+
 export interface GenerateVideoParams {
   prompt: string;
   model: string;
@@ -30,17 +34,18 @@ export interface GenerateVideoParams {
   image?: ImageData;
   aspectRatio?: AspectRatio;
   signal?: AbortSignal;
+  durationSecs?: number;
+  numberOfVideos?: number;
+  resolution?: VideoResolution;
+  generatePeople?: boolean;
 }
-
-export type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
-export type Resolution = '1k' | '2k';
 
 export interface GenerateImageParams {
   prompt: string;
   model: string;
   numberOfImages: number;
   aspectRatio: AspectRatio;
-  resolution: Resolution;
+  resolution: ImageResolution;
   apiKey: string;
   outputMimeType: 'image/jpeg' | 'image/png';
   signal?: AbortSignal;
@@ -91,7 +96,7 @@ export interface ImageGalleryItem extends BaseGalleryItem {
   imageUrls: string[];
   prompt: string;
   aspectRatio: AspectRatio;
-  resolution: Resolution;
+  resolution: ImageResolution;
   model: string;
 }
 

@@ -1,16 +1,50 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
-import type { ImageData, AspectRatio } from '../types';
+import type { ImageData, AspectRatio, VideoResolution } from '../types';
 import { UploadIcon, SparklesIcon, CancelGenerationIcon, VideoIcon, ClearInputIcon, MagicWandIcon, SpinnerIcon, CodeIcon } from './IconComponents';
 import { enhancePrompt, VIDEO_PROMPT_ENHANCEMENT_INSTRUCTION } from '../services/geminiService';
 import { AspectRatioSelector } from './AspectRatioSelector';
 import { useAutoResizeTextarea } from '../hooks/useAutoResizeTextarea';
 import { CustomModelSelector } from './CustomModelSelector';
+import { NumberSelector } from './NumberSelector';
 
 const MAX_SIZE_MB = 10;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+interface ToggleSwitchProps {
+  label: string;
+  enabled: boolean;
+  setEnabled: (enabled: boolean) => void;
+  disabled?: boolean;
+}
+
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ label, enabled, setEnabled, disabled }) => {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {label}
+      </label>
+      <button
+        type="button"
+        onClick={() => setEnabled(!enabled)}
+        disabled={disabled}
+        className={`
+          relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800
+          ${enabled ? 'bg-brand-primary' : 'bg-gray-200 dark:bg-gray-600'}
+          ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+        `}
+      >
+        <span
+          className={`
+            inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out
+            ${enabled ? 'translate-x-6' : 'translate-x-1'}
+          `}
+        />
+      </button>
+    </div>
+  );
+};
 
 interface PromptFormProps {
   onSubmit: () => void;
@@ -29,6 +63,14 @@ interface PromptFormProps {
   isGenerating?: boolean;
   isCancelling?: boolean;
   onCancel: () => void;
+  duration: number;
+  setDuration: (duration: number) => void;
+  numberOfVideos: number;
+  setNumberOfVideos: (num: number) => void;
+  resolution: VideoResolution;
+  setResolution: (res: VideoResolution) => void;
+  generatePeople: boolean;
+  setGeneratePeople: (gen: boolean) => void;
 }
 
 export const PromptForm: React.FC<PromptFormProps> = ({
@@ -48,6 +90,14 @@ export const PromptForm: React.FC<PromptFormProps> = ({
   isGenerating = false,
   isCancelling = false,
   onCancel,
+  duration,
+  setDuration,
+  numberOfVideos,
+  setNumberOfVideos,
+  resolution,
+  setResolution,
+  generatePeople,
+  setGeneratePeople,
 }) => {
   const [isEnhancing, setIsEnhancing] = useState<boolean>(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -55,6 +105,19 @@ export const PromptForm: React.FC<PromptFormProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useAutoResizeTextarea(textareaRef, prompt);
   const [timer, setTimer] = useState(0);
+
+  const isVEO3 = model === 'veo-3.0-generate-preview';
+  
+  useEffect(() => {
+    if (isVEO3) {
+      setDuration(8);
+      setNumberOfVideos(1);
+    } else {
+      if (duration !== 5 && duration !== 8) {
+        setDuration(5);
+      }
+    }
+  }, [model, isVEO3, setDuration, setNumberOfVideos, duration]);
 
   useEffect(() => {
     let intervalId: number | undefined;
@@ -186,6 +249,8 @@ export const PromptForm: React.FC<PromptFormProps> = ({
     setImage(null);
     setImageError(null);
   };
+
+  const isResolutionDisabled = aspectRatio !== '16:9';
 
   return (
     <div className={`p-1 rounded-xl transition-all duration-300 ${isGenerating ? 'tracer-border-active' : ''}`}>
@@ -356,6 +421,79 @@ export const PromptForm: React.FC<PromptFormProps> = ({
                       disabled={isDisabled}
                       t={t}
                     />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          {t('durationLabel')}
+                      </label>
+                      <div className={`flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 transition-opacity ${isDisabled || isVEO3 ? 'opacity-50' : ''}`}>
+                          {([5, 8] as const).map(d => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setDuration(d)}
+                                disabled={isDisabled || isVEO3}
+                                title={`${t('tooltips.setDuration')} to ${d}s`}
+                                className={`w-full px-3 py-1 text-sm font-semibold rounded-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-700 focus:ring-brand-primary ${
+                                  duration === d
+                                    ? 'bg-white dark:bg-gray-800 text-brand-primary shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-600/50'
+                                }`}
+                                aria-pressed={duration === d}
+                              >
+                                {d}s
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+                  <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          {t('videoResolutionLabel')}
+                      </label>
+                      <div className={`flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 transition-opacity ${isDisabled || isResolutionDisabled ? 'opacity-50' : ''}`}>
+                          {(['720p', '1080p'] as const).map(res => (
+                              <button
+                                key={res}
+                                type="button"
+                                onClick={() => setResolution(res)}
+                                disabled={isDisabled || isResolutionDisabled}
+                                title={t('tooltips.setResolution')}
+                                className={`w-full px-3 py-1 text-sm font-semibold rounded-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-700 focus:ring-brand-primary ${
+                                  resolution === res
+                                    ? 'bg-white dark:bg-gray-800 text-brand-primary shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-600/50'
+                                }`}
+                                aria-pressed={resolution === res}
+                              >
+                                {res.toUpperCase()}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 items-start">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {t('numVideosLabel')}
+                        </label>
+                        <NumberSelector
+                            value={numberOfVideos}
+                            onChange={setNumberOfVideos}
+                            min={1}
+                            max={isVEO3 ? 1 : 2}
+                            disabled={isDisabled || isVEO3}
+                            t={t}
+                        />
+                    </div>
+                    <div>
+                        <ToggleSwitch
+                            label={t('personGenerationLabel')}
+                            enabled={generatePeople}
+                            setEnabled={setGeneratePeople}
+                            disabled={isDisabled}
+                        />
+                    </div>
                 </div>
               </div>
             </div>

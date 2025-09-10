@@ -1,7 +1,7 @@
 
 
 import React, { useState, useRef, useEffect } from 'react';
-import type { AspectRatio, Resolution } from '../types';
+import type { AspectRatio, ImageResolution } from '../types';
 import { SparklesIcon, CancelGenerationIcon, ImageIcon, ClearInputIcon, MagicWandIcon } from './IconComponents';
 import { enhancePrompt } from '../services/geminiService';
 import { AspectRatioSelector } from './AspectRatioSelector';
@@ -21,8 +21,8 @@ interface ImagePromptFormProps {
   setAspectRatio: (ratio: AspectRatio) => void;
   numberOfImages: number;
   setNumberOfImages: (num: number) => void;
-  resolution: Resolution;
-  setResolution: (res: Resolution) => void;
+  resolution: ImageResolution;
+  setResolution: (res: ImageResolution) => void;
   apiKey: string;
   isGenerating?: boolean;
   isCancelling?: boolean;
@@ -252,7 +252,7 @@ export const ImagePromptForm: React.FC<ImagePromptFormProps> = ({
                 <select
                   id="resolution"
                   value={resolution}
-                  onChange={(e) => setResolution(e.target.value as Resolution)}
+                  onChange={(e) => setResolution(e.target.value as ImageResolution)}
                   disabled
                   className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-800 dark:text-gray-300 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

@@ -1,5 +1,5 @@
 {
-  "name": " AI Studio Gallery (scene build checkpoint)",
+  "name": "Copy of  AI Studio Gallery (full feature)",
   "description": "An advanced AI-powered application to generate high-quality videos and images from text prompts and reference images using Google's latest models. Users can input a prompt, optionally upload an image, select a model, and generate, preview, and download the resulting.",
   "requestFramePermissions": []
 }
