@@ -55,6 +55,8 @@
   "modelDescription": {
     "veo_2_0_generate_001": "Model video andalan Google, sempurna untuk hasil sinematik berkualitas tinggi.",
     "veo_3_0_generate_preview": "Pratinjau eksperimental model VEO generasi berikutnya dengan kemampuan yang ditingkatkan.",
+    "veo_3_0_generate_001": "Model VEO 3 standar, menawarkan pembuatan video berkualitas tinggi.",
+    "veo_3_0_fast_generate_001": "Versi VEO 3 yang lebih cepat, dioptimalkan untuk hasil yang cepat.",
     "custom": "Masukkan ID model VEO kustom untuk generasi.",
     "imagen_3_0_generate_002": "Model yang kuat untuk menghasilkan gambar berkualitas tinggi.",
     "imagen_4_0_fast_generate_001": "Dioptimalkan untuk kecepatan, ideal untuk iterasi cepat dan pratinjau.",
@@ -79,7 +81,7 @@
   "chatPlaceholder": "Tanyakan apa saja",
   "clearChatButton": "Chat Baru",
   "advancedSettings": "Pengaturan Lanjutan",
-  "durationLabel": "Durasi (detik)",
+  "durationLabel": "Durasi",
   "numVideosLabel": "Jumlah Video",
   "videoResolutionLabel": "Resolusi",
   "personGenerationLabel": "Hasilkan Orang",

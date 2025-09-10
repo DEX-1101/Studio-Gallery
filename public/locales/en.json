@@ -55,6 +55,8 @@
   "modelDescription": {
     "veo_2_0_generate_001": "Google's flagship video model, perfect for high-quality, cinematic shots.",
     "veo_3_0_generate_preview": "Experimental preview of the next generation VEO model with enhanced capabilities.",
+    "veo_3_0_generate_001": "The standard VEO 3 model, offering high-quality video generation.",
+    "veo_3_0_fast_generate_001": "A faster version of VEO 3, optimized for quick results.",
     "custom": "Enter a custom VEO model ID for generation.",
     "imagen_3_0_generate_002": "A powerful model for generating high-quality images.",
     "imagen_4_0_fast_generate_001": "Optimized for speed, ideal for rapid iterations and previews.",
@@ -79,7 +81,7 @@
   "chatPlaceholder": "Ask anything",
   "clearChatButton": "New Chat",
   "advancedSettings": "Advanced Settings",
-  "durationLabel": "Duration (seconds)",
+  "durationLabel": "Duration",
   "numVideosLabel": "Number of Videos",
   "videoResolutionLabel": "Resolution",
   "personGenerationLabel": "Generate People",
