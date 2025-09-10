@@ -1,3 +1,4 @@
 @echo off
-npm install
-npm run dev
+call npm install
+call npm run dev
+pause
