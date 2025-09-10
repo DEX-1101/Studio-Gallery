@@ -1,13 +1,5 @@
 
 
-
-
-
-
-
-
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { PromptForm } from './components/PromptForm';
@@ -146,6 +138,8 @@ const SceneBuilderFlow: React.FC<SceneBuilderFlowProps> = ({
   const videoModels = [
     { id: 'veo-2.0-generate-001', name: 'VEO 2' },
     { id: 'veo-3.0-generate-preview', name: 'VEO 3 Preview' },
+    { id: 'veo-3.0-generate-001', name: 'VEO 3' },
+    { id: 'veo-3.0-fast-generate-001', name: 'VEO 3 Fast' },
   ].map(m => ({
     ...m,
     description: t(`modelDescription.${m.id.replace(/[\.\-]/g, '_')}`),
@@ -338,7 +332,7 @@ const App: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>(() => envApiKey || localStorage.getItem('gemini-api-key') || '');
   
   // Results
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoUrls, setVideoUrls] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imageFusionResult, setImageFusionResult] = useState<NanoBananaResultPart[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -932,7 +926,8 @@ const App: React.FC = () => {
     });
   };
   
-  const runSceneBuildStep = async (params: { prompt: string; action: string; inputImage?: ImageData; }) => {
+// FIX: Updated function signature to accept a single object parameter and destructure internally to resolve argument mismatch error.
+const runSceneBuildStep = async (params: { prompt: string; action: string; inputImage?: ImageData; }) => {
       const { prompt, action, inputImage } = params;
       const controller = new AbortController();
       setAbortController(controller);
@@ -943,14 +938,20 @@ const App: React.FC = () => {
       try {
         setSceneBuildStatus(t('sceneBuildProgress.generatingVideo', { current: sceneBuildSteps.length + 1, total: '?' }));
 
-        const downloadLink = await generateVideoFromPrompt({
+        const downloadLinks = await generateVideoFromPrompt({
             prompt: prompt,
             model: sceneBuildModel,
             image: inputImage,
             apiKey,
             aspectRatio: undefined,
             signal: controller.signal,
+            numberOfVideos: 1,
         });
+
+        if (downloadLinks.length === 0) {
+            throw new Error("Scene builder step failed: Model did not return a video.");
+        }
+        const downloadLink = downloadLinks[0];
 
         const response = await fetch(`${downloadLink}&key=${apiKey}`);
         if (!response.ok) throw new Error(`Failed to fetch video file. Status: ${response.status}`);
@@ -999,6 +1000,7 @@ const handleSceneBuildInitialStep = async (params: { character: string; action: 
     const combinedPrompt = `${character} ${action} ${extra}`.trim();
 
     try {
+// FIX: Updated call to runSceneBuildStep to pass a single object argument to match the function's signature.
         await runSceneBuildStep({ prompt: combinedPrompt, action, inputImage: initialImage?.data });
     } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
@@ -1030,6 +1032,7 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
     const combinedPrompt = `${sceneBuildCharacter} ${action} ${sceneBuildExtra}`.trim();
   
     try {
+// FIX: Updated call to runSceneBuildStep to pass a single object argument to match the function's signature.
       await runSceneBuildStep({ prompt: combinedPrompt, action, inputImage: lastStep.lastFrameData });
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -1067,7 +1070,7 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
     // Note: SCENE_BUILD is handled via its own component and doesn't use this main submit handler.
     const controller = new AbortController();
     setAbortController(controller);
-    setVideoUrl(null);
+    setVideoUrls([]);
     setImageUrls([]);
     setImageFusionResult(null);
     setLastAutoSaveSuccess(false);
@@ -1078,7 +1081,7 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
         let autoSaveSuccess = false;
         if (appMode === AppMode.VIDEO) {
             const modelToUse = videoModel === 'custom' ? customVideoModel : videoModel;
-            const downloadLink = await generateVideoFromPrompt({ 
+            const downloadLinks = await generateVideoFromPrompt({ 
                 prompt: videoPrompt,
                 model: modelToUse,
                 image: videoImage?.data,
@@ -1091,18 +1094,35 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
                 generatePeople: videoGeneratePeople,
             });
             
-            const response = await fetch(`${downloadLink}&key=${apiKey}`);
-            if (!response.ok) throw new Error(`Failed to fetch video file. Status: ${response.status}`);
+            const videoBlobs = await Promise.all(
+                downloadLinks.map(async (link) => {
+                    const response = await fetch(`${link}&key=${apiKey}`);
+                    if (!response.ok) {
+                        console.error(`Failed to fetch video file from ${link}. Status: ${response.status}`);
+                        return null;
+                    }
+                    return response.blob();
+                })
+            );
             
-            const videoBlob = await response.blob();
-            
+            const validBlobs = videoBlobs.filter((blob): blob is Blob => blob !== null);
+            if (validBlobs.length === 0) {
+                throw new Error("Failed to fetch any video files after generation.");
+            }
+        
             if (directoryHandle) {
-                const filename = `${videoPrompt.substring(0, 20).replace(/\s/g, '_') || 'video'}-${Date.now()}.mp4`;
-                autoSaveSuccess = await saveFile(videoBlob, filename);
+                let savedCount = 0;
+                for (let i = 0; i < validBlobs.length; i++) {
+                    const filename = `${videoPrompt.substring(0, 20).replace(/\s/g, '_') || 'video'}-${Date.now()}-${i + 1}.mp4`;
+                    if (await saveFile(validBlobs[i], filename)) {
+                        savedCount++;
+                    }
+                }
+                autoSaveSuccess = savedCount === validBlobs.length;
             }
             
-            const objectUrl = URL.createObjectURL(videoBlob);
-            setVideoUrl(objectUrl);
+            const objectUrls = validBlobs.map(blob => URL.createObjectURL(blob));
+            setVideoUrls(objectUrls);
 
         } else if (appMode === AppMode.IMAGE) {
             const images = await generateImagesFromPrompt({
@@ -1155,7 +1175,7 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
 
   const clearAllInputs = () => {
     // Revoke any existing object URLs to prevent memory leaks
-    if (videoUrl) URL.revokeObjectURL(videoUrl);
+    videoUrls.forEach(url => URL.revokeObjectURL(url));
     if (videoImage) URL.revokeObjectURL(videoImage.preview);
     if (imageBuilderInitialImages) {
         imageBuilderInitialImages.forEach(img => URL.revokeObjectURL(img.preview));
@@ -1168,7 +1188,7 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
     sceneBuildSteps.forEach(step => URL.revokeObjectURL(step.videoUrl));
 
     // Reset state
-    setVideoUrl(null);
+    setVideoUrls([]);
     setImageUrls([]);
     setImageFusionResult(null);
     setError(null);
@@ -1211,8 +1231,8 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
 
   const handleCreateAnother = () => {
     transitionToState(AppState.IDLE, 'backward', () => {
-      if (videoUrl) URL.revokeObjectURL(videoUrl);
-      setVideoUrl(null);
+      videoUrls.forEach(url => URL.revokeObjectURL(url));
+      setVideoUrls([]);
       setImageUrls([]);
       setImageFusionResult(null);
       setError(null);
@@ -1304,8 +1324,8 @@ const handleSceneBuildFollowUpStep = async (params: { action: string; }) => {
   
     switch (appMode) {
       case AppMode.VIDEO:
-        if (appState === AppState.SUCCESS && videoUrl) {
-          return <VideoResult videoUrl={videoUrl} onCreateAnother={handleCreateAnother} t={t} showDownloadButton={!lastAutoSaveSuccess} />;
+        if (appState === AppState.SUCCESS && videoUrls.length > 0) {
+          return <VideoResult videoUrls={videoUrls} onCreateAnother={handleCreateAnother} t={t} showDownloadButton={!lastAutoSaveSuccess} />;
         }
         return (
           <PromptForm

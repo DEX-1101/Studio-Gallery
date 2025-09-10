@@ -1,5 +1,4 @@
 
-
 import { GoogleGenAI, Modality, GenerateContentResponse } from "@google/genai";
 import type { GenerateVideoParams, GenerateImageParams, EditImageServiceParams, NanoBananaResultPart, ImageData, EnhancePromptParams } from '../types';
 
@@ -398,7 +397,7 @@ const handleApiError = (error: unknown): never => {
     throw new Error(`An error occurred: ${rawMessage}`);
 };
 
-export const generateVideoFromPrompt = async ({ prompt, model, image, apiKey, aspectRatio, signal, durationSecs, numberOfVideos, resolution, generatePeople }: GenerateVideoParams): Promise<string> => {
+export const generateVideoFromPrompt = async ({ prompt, model, image, apiKey, aspectRatio, signal, durationSecs, numberOfVideos, resolution, generatePeople }: GenerateVideoParams): Promise<string[]> => {
   if (!apiKey) {
     throw new Error("API Key is not configured.");
   }
@@ -426,10 +425,6 @@ export const generateVideoFromPrompt = async ({ prompt, model, image, apiKey, as
       requestPayload.config.generatePeople = generatePeople;
   }
 
-  if (resolution && aspectRatio === '16:9') {
-      requestPayload.config.resolution = resolution === '1080p' ? 'SDR_1080P' : 'SDR_720P';
-  }
-
   if (image) {
     requestPayload.image = {
       imageBytes: image.base64,
@@ -452,15 +447,24 @@ export const generateVideoFromPrompt = async ({ prompt, model, image, apiKey, as
         const errorMessage = `Video generation failed. Code: ${(operation.error as any).code || 'N/A'}. Message: ${(operation.error as any).message || 'No message provided.'}`;
         throw new Error(errorMessage);
     }
+    
+    const generatedVideos = operation.response?.generatedVideos;
 
-    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-
-    if (!downloadLink) {
+    if (!generatedVideos || generatedVideos.length === 0) {
       console.error("Video generation finished but response is malformed or missing video URI:", JSON.stringify(operation.response, null, 2));
       throw new Error("Video generation completed, but no download link was found. The model may have rejected the prompt due to safety policies, or an unknown API error occurred.");
     }
     
-    return downloadLink;
+    const downloadLinks = generatedVideos
+      .map(videoInfo => videoInfo?.video?.uri)
+      .filter((uri): uri is string => !!uri);
+
+    if (downloadLinks.length === 0) {
+        throw new Error("Video generation completed, but download links were empty.");
+    }
+    
+    return downloadLinks;
+
   } catch (error) {
     if (signal?.aborted) throw error;
     handleApiError(error);

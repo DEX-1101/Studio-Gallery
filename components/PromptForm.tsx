@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { ImageData, AspectRatio, VideoResolution } from '../types';
 import { UploadIcon, SparklesIcon, CancelGenerationIcon, VideoIcon, ClearInputIcon, MagicWandIcon, SpinnerIcon, CodeIcon } from './IconComponents';
@@ -106,18 +107,14 @@ export const PromptForm: React.FC<PromptFormProps> = ({
   useAutoResizeTextarea(textareaRef, prompt);
   const [timer, setTimer] = useState(0);
 
-  const isVEO3 = model === 'veo-3.0-generate-preview';
+  const isVEO3 = model.startsWith('veo-3.0-');
   
   useEffect(() => {
     if (isVEO3) {
       setDuration(8);
       setNumberOfVideos(1);
-    } else {
-      if (duration !== 5 && duration !== 8) {
-        setDuration(5);
-      }
     }
-  }, [model, isVEO3, setDuration, setNumberOfVideos, duration]);
+  }, [model, isVEO3, setDuration, setNumberOfVideos]);
 
   useEffect(() => {
     let intervalId: number | undefined;
@@ -150,6 +147,14 @@ export const PromptForm: React.FC<PromptFormProps> = ({
     { 
       id: 'veo-3.0-generate-preview', 
       name: 'VEO 3 Preview', 
+    },
+    { 
+      id: 'veo-3.0-generate-001', 
+      name: 'VEO 3', 
+    },
+    { 
+      id: 'veo-3.0-fast-generate-001', 
+      name: 'VEO 3 Fast', 
     },
   ].map(m => ({
     ...m,
@@ -249,8 +254,6 @@ export const PromptForm: React.FC<PromptFormProps> = ({
     setImage(null);
     setImageError(null);
   };
-
-  const isResolutionDisabled = aspectRatio !== '16:9';
 
   return (
     <div className={`p-1 rounded-xl transition-all duration-300 ${isGenerating ? 'tracer-border-active' : ''}`}>
@@ -451,18 +454,17 @@ export const PromptForm: React.FC<PromptFormProps> = ({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           {t('videoResolutionLabel')}
                       </label>
-                      <div className={`flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 transition-opacity ${isDisabled || isResolutionDisabled ? 'opacity-50' : ''}`}>
+                      <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 opacity-50">
                           {(['720p', '1080p'] as const).map(res => (
                               <button
                                 key={res}
                                 type="button"
-                                onClick={() => setResolution(res)}
-                                disabled={isDisabled || isResolutionDisabled}
-                                title={t('tooltips.setResolution')}
-                                className={`w-full px-3 py-1 text-sm font-semibold rounded-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-700 focus:ring-brand-primary ${
+                                disabled={true}
+                                title={t('resolutionUnsupportedWarning')}
+                                className={`w-full px-3 py-1 text-sm font-semibold rounded-md cursor-not-allowed ${
                                   resolution === res
                                     ? 'bg-white dark:bg-gray-800 text-brand-primary shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-600/50'
+                                    : 'text-gray-600 dark:text-gray-300'
                                 }`}
                                 aria-pressed={resolution === res}
                               >
@@ -470,6 +472,7 @@ export const PromptForm: React.FC<PromptFormProps> = ({
                               </button>
                           ))}
                       </div>
+                      <p className="text-xs text-brand-accent mt-1">{t('resolutionUnsupportedWarning')}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 items-start">
